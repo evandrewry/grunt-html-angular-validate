@@ -11,7 +11,6 @@
 var colors = require('colors');
 var validate = require('html-angular-validate');
 var vnu = require("validator-nu");
-var svr = new vnu.Vnu();
 
 
 var writeFileErrors = function(grunt, file) {
@@ -67,7 +66,7 @@ module.exports = function(grunt) {
       charset: 'utf-8',
       reportpath: 'html-angular-validate-report.json',
       reportCheckstylePath: 'html-angular-validate-report-checkstyle.xml',
-      w3clocal: "https://localhost:" + svr.port,
+      w3clocal: 'http://localhost:8888',
       w3cproxy: null,
       concurrentJobs: 1,
       maxvalidateattempts: 3
@@ -85,6 +84,13 @@ module.exports = function(grunt) {
     // Force task into async mode and grab a handle to the "done" function.
     var done = this.async();
 
+    var svr = new vnu.Vnu(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      8888
+    );
 
     svr.open().then(function(pid) {
 
