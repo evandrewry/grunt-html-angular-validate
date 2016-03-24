@@ -54,53 +54,48 @@ var writeFileErrors = function(grunt, file) {
 
 module.exports = function(grunt) {
   grunt.registerMultiTask('htmlangular', 'An HTML5 validator aimed at AngularJS projects.', function() {
-    // Merge task-specific and/or target-specific options with these defaults.
-    var options = this.options({
-      angular: true,
-      customtags: [],
-      customattrs: [],
-      wrapping: {},
-      relaxerror: [],
-      tmplext: 'tmpl.html',
-      doctype: 'HTML5',
-      charset: 'utf-8',
-      reportpath: 'html-angular-validate-report.json',
-      reportCheckstylePath: 'html-angular-validate-report-checkstyle.xml',
-      w3clocal: 'http://localhost:8888',
-      w3cproxy: null,
-      concurrentJobs: 1,
-      maxvalidateattempts: 3
-    });
-    options.concurrentjobs = options.concurrentJobs;
-
-    // Delete existing reports if present
-    if (options.reportpath !== null && grunt.file.exists(options.reportpath)) {
-      grunt.file.delete(options.reportpath);
-    }
-    if (options.reportCheckstylePath !== null && grunt.file.exists(options.reportpath)) {
-      grunt.file.delete(options.reportCheckstylePath);
-    }
-
     // Force task into async mode and grab a handle to the "done" function.
     var done = this.async();
 
-    var svr = new vnu.Vnu(
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      8888
-    );
+    var svr = new vnu.Vnu();
 
     svr.open().then(function(pid) {
+      // Merge task-specific and/or target-specific options with these defaults.
+      var options = this.options({
+        angular: true,
+        customtags: [],
+        customattrs: [],
+        wrapping: {},
+        relaxerror: [],
+        tmplext: 'tmpl.html',
+        doctype: 'HTML5',
+        charset: 'utf-8',
+        reportpath: 'html-angular-validate-report.json',
+        reportCheckstylePath: 'html-angular-validate-report-checkstyle.xml',
+        w3clocal: 'http://localhost:' + svr.port,
+        w3cproxy: null,
+        concurrentJobs: 1,
+        maxvalidateattempts: 3
+      });
+      options.concurrentjobs = options.concurrentJobs;
+
+      // Delete existing reports if present
+      if (options.reportpath !== null && grunt.file.exists(options.reportpath)) {
+        grunt.file.delete(options.reportpath);
+      }
+      if (options.reportCheckstylePath !== null && grunt.file.exists(options.reportpath)) {
+        grunt.file.delete(options.reportCheckstylePath);
+      }
 
       // Run the validation plug in
-      validate.validate(this.filesSrc, options).then(function(result) {
+      validate.validate(this.filesSrc, options).then((function(result) {
         // Finished, let user and grunt know how it went
         if (result.allpassed) {
           // No errors to output - task success
           grunt.log.oklns(result.filessucceeded + ' files passed validation');
-          done();
+          svr.close().then(function() {
+            done();
+          });
         } else {
           // Output failures - task failure
           for (var i = 0; i < result.failed.length; i += 1) {
@@ -109,18 +104,24 @@ module.exports = function(grunt) {
 
           // Finalize output and send control back to grunt
           grunt.fail.warn('HTML validation failed');
-          done(false);
+          svr.close().then(function() {
+            done(false);
+          });
         }
-      }, function(err) {
+      }).bind(this), function(err) {
         // Validator failure - task failure
         grunt.log.errorlns('Unable to perform validation');
         grunt.log.errorlns('html-angular-validate error: ' + err);
-        done(false);
+        return svr.close().then(function() {
+          done(false);
+        });
       });
 
-    }).catch(function (e) {
-      grunt.fail.warn('Could not start validator');
-      done(false);
+    }.bind(this)).catch(function (e) {
+      grunt.fail.warn('Could not start validator', e);
+      return svr.close().then(function() {
+        done(false);
+      });
     });
 
 
