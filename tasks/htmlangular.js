@@ -10,100 +10,113 @@
 
 var colors = require('colors');
 var validate = require('html-angular-validate');
+var vnu = require("validator-nu");
+var svr = new vnu.Vnu();
+
 
 var writeFileErrors = function(grunt, file) {
-	// Start writing this file
-	grunt.log.writeln('Validating ' +
-					  file.filepath +
-					  ' ...' +
-					  'ERROR'.red);
+  // Start writing this file
+  grunt.log.writeln('Validating ' +
+                    file.filepath +
+                    ' ...' +
+                    'ERROR'.red);
 
-	if (file.errors[0].msg === 'Unable to validate file') {
-		grunt.log.writeln('Validating ' +
-		                  file.filepath +
-		                  ' ...' +
-		                  'ERROR'.red);
-		grunt.log.writeln('Unable to validate file'.yellow);
-		return;
-	}
+  if (file.errors[0].msg === 'Unable to validate file') {
+    grunt.log.writeln('Validating ' +
+                      file.filepath +
+                      ' ...' +
+                      'ERROR'.red);
+    grunt.log.writeln('Unable to validate file'.yellow);
+    return;
+  }
 
-	// Write each error
-	for (var i = 0; i < file.errors.length; i += 1) {
-		var err = file.errors[i];
-		if (err.line !== undefined) {
-			grunt.log.writeln('['.red +
-							  'L'.yellow +
-							  ('' + err.line).yellow +
-							  ':'.red +
-							  'C'.yellow +
-							  ('' + err.col).yellow +
-							  ']'.red +
-							  ' ' +
-							  err.msg.yellow);
-		} else {
-			grunt.log.writeln('['.red +
-							  'file'.yellow +
-							  ']'.red +
-							  ' ' +
-							  err.msg.yellow);
-		}
-	}
+  // Write each error
+  for (var i = 0; i < file.errors.length; i += 1) {
+    var err = file.errors[i];
+    if (err.line !== undefined) {
+      grunt.log.writeln('['.red +
+                        'L'.yellow +
+                        ('' + err.line).yellow +
+                        ':'.red +
+                        'C'.yellow +
+                        ('' + err.col).yellow +
+                        ']'.red +
+                        ' ' +
+                        err.msg.yellow);
+    } else {
+      grunt.log.writeln('['.red +
+                        'file'.yellow +
+                        ']'.red +
+                        ' ' +
+                        err.msg.yellow);
+    }
+  }
 };
 
 module.exports = function(grunt) {
-	grunt.registerMultiTask('htmlangular', 'An HTML5 validator aimed at AngularJS projects.', function() {
-        // Merge task-specific and/or target-specific options with these defaults.
-        var options = this.options({
-            angular: true,
-            customtags: [],
-            customattrs: [],
-            wrapping: {},
-            relaxerror: [],
-            tmplext: 'tmpl.html',
-            doctype: 'HTML5',
-            charset: 'utf-8',
-            reportpath: 'html-angular-validate-report.json',
-			reportCheckstylePath: 'html-angular-validate-report-checkstyle.xml',
-            w3clocal: null,
-            w3cproxy: null,
-            concurrentJobs: 1,
-			maxvalidateattempts: 3
-        });
-		options.concurrentjobs = options.concurrentJobs;
-
-        // Delete existing reports if present
-        if (options.reportpath !== null && grunt.file.exists(options.reportpath)) {
-            grunt.file.delete(options.reportpath);
-        }
-		if (options.reportCheckstylePath !== null && grunt.file.exists(options.reportpath)) {
-			grunt.file.delete(options.reportCheckstylePath);
-		}
-
-        // Force task into async mode and grab a handle to the "done" function.
-        var done = this.async();
-
-		// Run the validation plug in
-        validate.validate(this.filesSrc, options).then(function(result) {
-			// Finished, let user and grunt know how it went
-		    if (result.allpassed) {
-				// No errors to output - task success
-		        grunt.log.oklns(result.filessucceeded + ' files passed validation');
-		        done();
-		    } else {
-				// Output failures - task failure
-				for (var i = 0; i < result.failed.length; i += 1) {
-					writeFileErrors(grunt, result.failed[i]);
-				}
-
-				// Finalize output and send control back to grunt
-		        grunt.fail.warn('HTML validation failed');
-		        done(false);
-		    }
-        }, function(err) {
-			// Validator failure - task failure
-        	grunt.log.errorlns('Unable to perform validation');
-			grunt.log.errorlns('html-angular-validate error: ' + err);
-			done(false);
-        });
+  grunt.registerMultiTask('htmlangular', 'An HTML5 validator aimed at AngularJS projects.', function() {
+    // Merge task-specific and/or target-specific options with these defaults.
+    var options = this.options({
+      angular: true,
+      customtags: [],
+      customattrs: [],
+      wrapping: {},
+      relaxerror: [],
+      tmplext: 'tmpl.html',
+      doctype: 'HTML5',
+      charset: 'utf-8',
+      reportpath: 'html-angular-validate-report.json',
+      reportCheckstylePath: 'html-angular-validate-report-checkstyle.xml',
+      w3clocal: "https://localhost:" + svr.port,
+      w3cproxy: null,
+      concurrentJobs: 1,
+      maxvalidateattempts: 3
     });
+    options.concurrentjobs = options.concurrentJobs;
+
+    // Delete existing reports if present
+    if (options.reportpath !== null && grunt.file.exists(options.reportpath)) {
+      grunt.file.delete(options.reportpath);
+    }
+    if (options.reportCheckstylePath !== null && grunt.file.exists(options.reportpath)) {
+      grunt.file.delete(options.reportCheckstylePath);
+    }
+
+    // Force task into async mode and grab a handle to the "done" function.
+    var done = this.async();
+
+
+    svr.open().then(function(pid) {
+
+      // Run the validation plug in
+      validate.validate(this.filesSrc, options).then(function(result) {
+        // Finished, let user and grunt know how it went
+        if (result.allpassed) {
+          // No errors to output - task success
+          grunt.log.oklns(result.filessucceeded + ' files passed validation');
+          done();
+        } else {
+          // Output failures - task failure
+          for (var i = 0; i < result.failed.length; i += 1) {
+            writeFileErrors(grunt, result.failed[i]);
+          }
+
+          // Finalize output and send control back to grunt
+          grunt.fail.warn('HTML validation failed');
+          done(false);
+        }
+      }, function(err) {
+        // Validator failure - task failure
+        grunt.log.errorlns('Unable to perform validation');
+        grunt.log.errorlns('html-angular-validate error: ' + err);
+        done(false);
+      });
+
+    }).catch(function (e) {
+      grunt.fail.warn('Could not start validator');
+      done(false);
+    });
+
+
+  });
 };
